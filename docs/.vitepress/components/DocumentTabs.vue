@@ -24,76 +24,45 @@ const { page } = useData()
 
 // Tab定义
 const tabs = [
-  { id: 'design', label: '设计文档', baseRoute: '/design/' },
-  { id: 'development', label: '开发文档', baseRoute: '/development/' }
+  { id: 'design', label: '设计文档', suffix: 'design' },
+  { id: 'development', label: '开发文档', suffix: 'development' }
 ]
-
-// 文档对照表，用于在不同类型文档间建立映射关系
-const docMappings = {
-  // 设计文档和开发文档的对照关系
-  'architecture': 'api', // 设计文档中的架构对应开发文档中的API
-  'api': 'architecture', // 开发文档中的API对应设计文档中的架构
-  // 可以添加更多映射关系
-}
 
 const activeTab = ref('design')
 
 // 判断是否应该显示tabs
 const shouldDisplayTabs = computed(() => {
   const path = route.path
-  // 只在文档页面显示tabs，不在首页显示
-  return path.startsWith('/design/') || path.startsWith('/development/')
+  // 只在表单和表格模块的文档页面显示tabs
+  return path.startsWith('/form/') || path.startsWith('/table/')
 })
 
 // 根据当前路由确定激活的tab
 const determineActiveTab = () => {
   const currentPath = route.path
-  for (const tab of tabs) {
-    if (currentPath.startsWith(tab.baseRoute)) {
-      activeTab.value = tab.id
-      return
-    }
+  console.log(currentPath);
+  
+  if (currentPath.endsWith('design.html')) {
+    activeTab.value = 'design'
+  } else if (currentPath.endsWith('development.html')) {
+    activeTab.value = 'development'
+  }else{
+    switchTab('design')
   }
-  // 默认为设计文档
-  activeTab.value = 'design'
-}
-
-// 获取路径的最后一部分（文档名）
-const getDocName = (path) => {
-  // 如果是目录路径（以/结尾），则返回空字符串
-  if (path.endsWith('/')) return ''
-  // 否则获取最后一段
-  const parts = path.split('/')
-  return parts[parts.length - 1]
 }
 
 // 切换到目标tab
 const switchTab = (tabId) => {
-  if (activeTab.value === tabId) return
-  
+//   if (activeTab.value === tabId) return
   const targetTab = tabs.find(tab => tab.id === tabId)
   const currentPath = route.path
-  const currentTabBaseRoute = tabs.find(tab => tab.id === activeTab.value)?.baseRoute
+  
+  // 获取当前模块路径（/form/ 或 /table/）
+  const modulePath = currentPath.split('/').slice(0, 3).join('/').split('.')[0]
+//   console.log(modulePath);
   
   // 创建新路径
-  let newPath = targetTab.baseRoute
-  if (currentPath.startsWith(currentTabBaseRoute)) {
-    // 获取当前文档名
-    const currentDocName = getDocName(currentPath)
-    
-    if (currentDocName) {
-      // 检查是否有对应的映射关系
-      const mappedDocName = docMappings[currentDocName]
-      
-      if (mappedDocName) {
-        // 使用映射的文档名
-        newPath = `${targetTab.baseRoute}${mappedDocName}`
-      } else {
-        // 尝试使用相同的文档名
-        newPath = `${targetTab.baseRoute}${currentDocName}`
-      }
-    }
-  }
+  const newPath = `${modulePath}/${targetTab.suffix}`
   
   activeTab.value = tabId
   // 使用正确的导航方法

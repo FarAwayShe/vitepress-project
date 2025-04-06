@@ -7,19 +7,19 @@ hero:
   actions:
     - theme: brand
       text: 开始阅读
-      link: /design/
+      link: /form/design
     - theme: alt
       text: 查看GitHub
       link: https://github.com
 features:
-  - icon: 📐
-    title: 设计文档
-    details: 包含项目设计理念、架构和规范等内容
-    link: /design/
-  - icon: 💻
-    title: 开发文档
-    details: 包含开发环境、API参考和代码指南等内容
-    link: /development/
+  - icon: 📝
+    title: 表单模块
+    details: 包含表单组件的设计理念和开发指南
+    link: /form/design
+  - icon: 📊
+    title: 表格模块
+    details: 包含表格组件的设计理念和开发指南
+    link: /table/design
   - icon: 🚀
     title: 简单易用
     details: 使用VitePress构建的现代化文档系统，支持文档类型快速切换

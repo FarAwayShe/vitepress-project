@@ -9,30 +9,35 @@ export default defineConfig({
     // 导航菜单
     nav: [
       { text: '首页', link: '/' },
-      { text: '设计文档', link: '/design/' },
-      { text: '开发文档', link: '/development/' }
+      { text: '表单', link: '/form/design' },
+      { text: '表格', link: '/table/design' }
     ],
 
     // 侧边栏
     sidebar: {
-      '/design/': [
+      '/': [
         {
-          text: '设计文档',
+          text: '模板',
           items: [
-            { text: '设计概述', link: '/design/' },
-            { text: '系统架构', link: '/design/architecture' }
+            { text: '表单', link: '/form' },
+            { text: '表格', link: '/table' }
           ]
-        }
+        },
+        // {
+        //   text: '表单',
+        //   items: [
+        //     { text: '设计文档', link: '/form' },
+        //     { text: '开发文档', link: '/form/development' }
+        //   ]
+        // },
+        // {
+        //   text: '表格',
+        //   items: [
+        //     { text: '设计文档', link: '/table/design' },
+        //     { text: '开发文档', link: '/table/development' }
+        //   ]
+        // }
       ],
-      '/development/': [
-        {
-          text: '开发文档',
-          items: [
-            { text: '开发指南', link: '/development/' },
-            { text: 'API 文档', link: '/development/api' }
-          ]
-        }
-      ]
     }
   }
 })
