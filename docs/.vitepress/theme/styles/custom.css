@@ -1,0 +1,12 @@
+/* 自定义样式 */
+.VPDoc {
+  /* 修正文档内容区域的样式，为Tab组件腾出空间 */
+  position: relative;
+}
+
+/* 适配移动端 */
+@media (max-width: 768px) {
+  .document-tabs {
+    padding: 10px 16px;
+  }
+} 
