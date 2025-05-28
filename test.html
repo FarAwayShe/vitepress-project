@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时获取可视区域 Test 元素</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding-top: 50px; /* 给顶部的 fixed bar 留空间 */
+        }
+        .item {
+            height: 200px;
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+        }
+        .item.test-class {
+            background-color: lightblue;
+            border-color: blue;
+        }
+        .item.another-test-item {
+            background-color: lightcoral;
+            border-color: red;
+        }
+        .item.no-test {
+            background-color: lightgreen;
+            border-color: green;
+        }
+        .fixed-info {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            z-index: 1000;
+            box-sizing: border-box;
+        }
+        .visible-elements-list {
+            list-style: none;
+            padding: 0;
+        }
+        .visible-elements-list li {
+            background-color: #444;
+            padding: 5px 10px;
+            margin-bottom: 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="fixed-info">
+        <p>当前可视区域内包含 "test" 的元素：</p>
+        <ul id="visibleList" class="visible-elements-list">
+            <!-- 列表将在这里动态更新 -->
+        </ul>
+    </div>
+
+    <div class="item test-class" id="item1">Item 1 (test-class)</div>
+    <div class="item no-test" id="item2">Item 2 (no-test)</div>
+    <div class="item another-test-item" id="item3">Item 3 (another-test-item)</div>
+    <div class="item test-class special" id="item4">Item 4 (test-class special)</div>
+    <div class="item no-test" id="item5">Item 5 (no-test)</div>
+    <div class="item test-class" id="item6">Item 6 (test-class)</div>
+    <div class="item another-test-item" id="item7">Item 7 (another-test-item)</div>
+    <div class="item test-class" id="item8">Item 8 (test-class)</div>
+    <div class="item no-test" id="item9">Item 9 (no-test)</div>
+    <div class="item test-it another-class" id="item10">Item 10 (test-it another-class)</div>
+    <div class="item test-class" id="item11">Item 11 (test-class)</div>
+    <div class="item another-test-item" id="item12">Item 12 (another-test-item)</div>
+    <div class="item no-test" id="item13">Item 13 (no-test)</div>
+    <div class="item test-class" id="item14">Item 14 (test-class)</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const visibleListElement = document.getElementById('visibleList');
+            // 使用 Set 来存储当前可见的 test 元素，方便添加和删除，并自动去重
+            const currentlyVisibleTestElements = new Set();
+
+            function updateVisibleListDisplay() {
+                visibleListElement.innerHTML = ''; // 清空列表
+                if (currentlyVisibleTestElements.size === 0) {
+                    const li = document.createElement('li');
+                    li.textContent = '无';
+                    visibleListElement.appendChild(li);
+                } else {
+                    currentlyVisibleTestElements.forEach(el => {
+                        const li = document.createElement('li');
+                        li.textContent = `ID: ${el.id || 'N/A'}, Classes: ${el.className}`;
+                        visibleListElement.appendChild(li);
+                    });
+                }
+                console.log('当前可视 "test" 元素:', Array.from(currentlyVisibleTestElements).map(el => el.id || el.className));
+            }
+
+            const observerCallback = (entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        // 元素进入可视区域
+                        currentlyVisibleTestElements.add(entry.target);
+                    } else {
+                        // 元素离开可视区域
+                        currentlyVisibleTestElements.delete(entry.target);
+                    }
+                });
+                updateVisibleListDisplay(); // 更新显示
+            };
+
+            // IntersectionObserver 配置
+            const observerOptions = {
+                root: null, // 观察口，null 表示浏览器视窗
+                rootMargin: '0px', // 视窗的外边距
+                threshold: 0 // 元素与视窗交叉比例达到多少时触发回调，0表示只要有1像素可见就触发
+                               // 可以是数组，如 [0, 0.5, 1] 表示在0%, 50%, 100% 可见时都触发
+            };
+
+            // 创建 IntersectionObserver 实例
+            const observer = new IntersectionObserver(observerCallback, observerOptions);
+
+            // 获取所有类名中包含 "test" 的元素
+            // [class*="test"] 是一个 CSS 属性选择器，表示 class 属性值中包含 "test" 字符串
+            const testElements = document.querySelectorAll('[class*="test"]');
+
+            // 观察所有目标元素
+            testElements.forEach(el => {
+                observer.observe(el);
+            });
+
+            // 初始加载时手动检查一次（可选，因为 IntersectionObserver 首次也会检查）
+            // updateVisibleListDisplay(); // IntersectionObserver 会在绑定后立即检查一次
+
+            // 注意：如果页面动态添加了新的带有 "test" 类名的元素，
+            // 你需要获取这些新元素并对它们也调用 observer.observe(newElement)。
+            // 例如，使用 MutationObserver 监听 DOM 变化。
+        });
+    </script>
+
+</body>
+</html>
