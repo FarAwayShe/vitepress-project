@@ -3,145 +3,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>实时获取可视区域 Test 元素</title>
+    <title>元素间连接线</title>
     <style>
         body {
             font-family: sans-serif;
-            margin: 0;
-            padding-top: 50px; /* 给顶部的 fixed bar 留空间 */
-        }
-        .item {
-            height: 200px;
             margin: 20px;
-            padding: 20px;
-            border: 1px solid #ccc;
-            background-color: #f9f9f9;
+            position: relative; /* For absolute positioning of SVG */
+        }
+        .box {
+            width: 150px;
+            height: 80px;
+            border: 2px solid blue;
+            background-color: lightblue;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2em;
+            position: absolute; /* For easy positioning in demo */
+            cursor: grab;
         }
-        .item.test-class {
-            background-color: lightblue;
-            border-color: blue;
+        #box1 {
+            top: 50px;
+            left: 50px;
         }
-        .item.another-test-item {
-            background-color: lightcoral;
-            border-color: red;
+        #box2 {
+            top: 200px;
+            left: 300px;
         }
-        .item.no-test {
+        #box3 {
+            top: 100px;
+            left: 500px;
             background-color: lightgreen;
             border-color: green;
         }
-        .fixed-info {
-            position: fixed;
+
+        /* SVG Layer Style */
+        #connector-svg-layer {
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            background-color: #333;
-            color: white;
-            padding: 10px;
-            z-index: 1000;
-            box-sizing: border-box;
-        }
-        .visible-elements-list {
-            list-style: none;
-            padding: 0;
-        }
-        .visible-elements-list li {
-            background-color: #444;
-            padding: 5px 10px;
-            margin-bottom: 5px;
-            border-radius: 3px;
+            height: 100%;
+            pointer-events: none; /* Allows clicks to pass through to elements below */
+            z-index: 10; /* Ensure it's above other content if needed, but below interactive elements */
         }
     </style>
 </head>
 <body>
 
-    <div class="fixed-info">
-        <p>当前可视区域内包含 "test" 的元素：</p>
-        <ul id="visibleList" class="visible-elements-list">
-            <!-- 列表将在这里动态更新 -->
-        </ul>
-    </div>
+    <div class="box" id="box1">Box 1</div>
+    <div class="box" id="box2">Box 2</div>
+    <div class="box" id="box3">Box 3</div>
 
-    <div class="item test-class" id="item1">Item 1 (test-class)</div>
-    <div class="item no-test" id="item2">Item 2 (no-test)</div>
-    <div class="item another-test-item" id="item3">Item 3 (another-test-item)</div>
-    <div class="item test-class special" id="item4">Item 4 (test-class special)</div>
-    <div class="item no-test" id="item5">Item 5 (no-test)</div>
-    <div class="item test-class" id="item6">Item 6 (test-class)</div>
-    <div class="item another-test-item" id="item7">Item 7 (another-test-item)</div>
-    <div class="item test-class" id="item8">Item 8 (test-class)</div>
-    <div class="item no-test" id="item9">Item 9 (no-test)</div>
-    <div class="item test-it another-class" id="item10">Item 10 (test-it another-class)</div>
-    <div class="item test-class" id="item11">Item 11 (test-class)</div>
-    <div class="item another-test-item" id="item12">Item 12 (another-test-item)</div>
-    <div class="item no-test" id="item13">Item 13 (no-test)</div>
-    <div class="item test-class" id="item14">Item 14 (test-class)</div>
+    <button onclick="drawConnections()">绘制/更新连接线</button>
+    <button onclick="clearConnections()">清除连接线</button>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const visibleListElement = document.getElementById('visibleList');
-            // 使用 Set 来存储当前可见的 test 元素，方便添加和删除，并自动去重
-            const currentlyVisibleTestElements = new Set();
+        const SVG_NS = "http://www.w3.org/2000/svg";
+        let svgLayer = null;
+        const drawnLines = []; // To keep track of drawn lines for clearing
 
-            function updateVisibleListDisplay() {
-                visibleListElement.innerHTML = ''; // 清空列表
-                if (currentlyVisibleTestElements.size === 0) {
-                    const li = document.createElement('li');
-                    li.textContent = '无';
-                    visibleListElement.appendChild(li);
-                } else {
-                    currentlyVisibleTestElements.forEach(el => {
-                        const li = document.createElement('li');
-                        li.textContent = `ID: ${el.id || 'N/A'}, Classes: ${el.className}`;
-                        visibleListElement.appendChild(li);
-                    });
+        /**
+         * Initializes the SVG layer if it doesn't exist.
+         */
+        function initSvgLayer() {
+            if (!document.getElementById('connector-svg-layer')) {
+                svgLayer = document.createElementNS(SVG_NS, "svg");
+                svgLayer.id = 'connector-svg-layer';
+                // The SVG width/height should ideally match document scroll dimensions
+                // For simplicity, 100% works for viewport, but for full document:
+                svgLayer.style.width = Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) + 'px';
+                svgLayer.style.height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) + 'px';
+
+
+                // Define arrowhead marker if not already defined (e.g. if layer is reused)
+                if (!svgLayer.querySelector('#arrowhead')) {
+                    const defs = document.createElementNS(SVG_NS, "defs");
+                    const marker = document.createElementNS(SVG_NS, "marker");
+                    marker.id = "arrowhead";
+                    marker.setAttribute("viewBox", "0 0 10 10");
+                    marker.setAttribute("refX", "8"); // Arrow tip position relative to line end
+                    marker.setAttribute("refY", "5");
+                    marker.setAttribute("markerUnits", "strokeWidth"); // Scales with line stroke
+                    marker.setAttribute("markerWidth", "8"); // Size of the arrowhead
+                    marker.setAttribute("markerHeight", "6");
+                    marker.setAttribute("orient", "auto-start-reverse"); // Orients arrow along the line
+
+                    const path = document.createElementNS(SVG_NS, "path");
+                    path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z"); // Triangle shape
+                    path.setAttribute("fill", "black"); // Arrow color
+                    marker.appendChild(path);
+                    defs.appendChild(marker);
+                    svgLayer.appendChild(defs);
                 }
-                console.log('当前可视 "test" 元素:', Array.from(currentlyVisibleTestElements).map(el => el.id || el.className));
+                document.body.appendChild(svgLayer);
+            } else {
+                svgLayer = document.getElementById('connector-svg-layer');
+                // Update SVG size if document size changed
+                svgLayer.style.width = Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) + 'px';
+                svgLayer.style.height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) + 'px';
+            }
+        }
+
+        /**
+         * Draws a line with an arrowhead between two HTML elements.
+         * @param {HTMLElement} startEl The starting HTML element.
+         * @param {HTMLElement} endEl The ending HTML element.
+         * @param {object} options Optional parameters.
+         * @param {string} [options.lineColor='black'] Color of the line.
+         * @param {number} [options.lineWidth=2] Width of the line.
+         * @param {string} [options.arrowColor='black'] Color of the arrowhead (applied to marker fill).
+         * @param {'center'|'top'|'bottom'|'left'|'right'} [options.startAnchor='center'] Anchor point on startEl.
+         * @param {'center'|'top'|'bottom'|'left'|'right'} [options.endAnchor='center'] Anchor point on endEl.
+         */
+        function drawArrowLine(startEl, endEl, options = {}) {
+            if (!startEl || !endEl) {
+                console.error("Start or end element not provided.");
+                return null;
             }
 
-            const observerCallback = (entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        // 元素进入可视区域
-                        currentlyVisibleTestElements.add(entry.target);
-                    } else {
-                        // 元素离开可视区域
-                        currentlyVisibleTestElements.delete(entry.target);
-                    }
+            initSvgLayer();
+
+            const defaults = {
+                lineColor: 'black',
+                lineWidth: 2,
+                arrowColor: 'black', // Note: marker path fill should be set for this to take effect via CSS or direct attribute
+                startAnchor: 'center',
+                endAnchor: 'center'
+            };
+            const config = { ...defaults, ...options };
+
+            // Update arrowhead color if specified (by finding the path in the marker)
+            const markerPath = svgLayer.querySelector('#arrowhead path');
+            if (markerPath && markerPath.getAttribute('fill') !== config.arrowColor) {
+                markerPath.setAttribute('fill', config.arrowColor);
+            }
+
+
+            const startRect = startEl.getBoundingClientRect();
+            const endRect = endEl.getBoundingClientRect();
+
+            // Account for page scrolling
+            const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+            const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+            const getAnchorPoint = (rect, anchorSide) => {
+                let x, y;
+                switch (anchorSide) {
+                    case 'top':
+                        x = rect.left + rect.width / 2;
+                        y = rect.top;
+                        break;
+                    case 'bottom':
+                        x = rect.left + rect.width / 2;
+                        y = rect.bottom;
+                        break;
+                    case 'left':
+                        x = rect.left;
+                        y = rect.top + rect.height / 2;
+                        break;
+                    case 'right':
+                        x = rect.right;
+                        y = rect.top + rect.height / 2;
+                        break;
+                    case 'center':
+                    default:
+                        x = rect.left + rect.width / 2;
+                        y = rect.top + rect.height / 2;
+                        break;
+                }
+                return { x: x + scrollX, y: y + scrollY };
+            };
+
+            const p1 = getAnchorPoint(startRect, config.startAnchor);
+            const p2 = getAnchorPoint(endRect, config.endAnchor);
+
+            const line = document.createElementNS(SVG_NS, "line");
+            line.setAttribute("x1", p1.x);
+            line.setAttribute("y1", p1.y);
+            line.setAttribute("x2", p2.x);
+            line.setAttribute("y2", p2.y);
+            line.setAttribute("stroke", config.lineColor);
+            line.setAttribute("stroke-width", config.lineWidth);
+            line.setAttribute("marker-end", "url(#arrowhead)"); // Apply the arrowhead marker
+
+            svgLayer.appendChild(line);
+            drawnLines.push(line); // Keep track for clearing
+            return line;
+        }
+
+        function clearConnections() {
+            drawnLines.forEach(line => line.remove());
+            drawnLines.length = 0; // Clear the array
+            // Optionally remove the SVG layer if no more lines are needed
+            // if (svgLayer) {
+            //     svgLayer.remove();
+            //     svgLayer = null;
+            // }
+        }
+
+        // --- Demo Usage ---
+        function drawConnections() {
+            clearConnections(); // Clear previous lines before drawing new ones
+
+            const box1 = document.getElementById('box1');
+            const box2 = document.getElementById('box2');
+            const box3 = document.getElementById('box3');
+
+            if (box1 && box2) {
+                drawArrowLine(box1, box2, {
+                    lineColor: 'dodgerblue',
+                    lineWidth: 3,
+                    arrowColor: 'dodgerblue',
+                    startAnchor: 'right',
+                    endAnchor: 'left'
                 });
-                updateVisibleListDisplay(); // 更新显示
-            };
+            }
+            if (box2 && box3) {
+                drawArrowLine(box2, box3, {
+                    lineColor: 'crimson',
+                    lineWidth: 2,
+                    arrowColor: 'crimson',
+                    startAnchor: 'top',
+                    endAnchor: 'bottom'
+                });
+            }
+             if (box1 && box3) {
+                drawArrowLine(box1, box3, {
+                    lineColor: 'green',
+                    lineWidth: 1,
+                    arrowColor: 'green',
+                    startAnchor: 'center',
+                    endAnchor: 'center'
+                });
+            }
+        }
 
-            // IntersectionObserver 配置
-            const observerOptions = {
-                root: null, // 观察口，null 表示浏览器视窗
-                rootMargin: '0px', // 视窗的外边距
-                threshold: 0 // 元素与视窗交叉比例达到多少时触发回调，0表示只要有1像素可见就触发
-                               // 可以是数组，如 [0, 0.5, 1] 表示在0%, 50%, 100% 可见时都触发
-            };
+        // Make boxes draggable for demo
+        function makeDraggable(element) {
+            let isDragging = false;
+            let offsetX, offsetY;
 
-            // 创建 IntersectionObserver 实例
-            const observer = new IntersectionObserver(observerCallback, observerOptions);
-
-            // 获取所有类名中包含 "test" 的元素
-            // [class*="test"] 是一个 CSS 属性选择器，表示 class 属性值中包含 "test" 字符串
-            const testElements = document.querySelectorAll('[class*="test"]');
-
-            // 观察所有目标元素
-            testElements.forEach(el => {
-                observer.observe(el);
+            element.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                offsetX = e.clientX - element.getBoundingClientRect().left;
+                offsetY = e.clientY - element.getBoundingClientRect().top;
+                element.style.cursor = 'grabbing';
+                element.style.zIndex = '1000'; // Bring to front while dragging
             });
 
-            // 初始加载时手动检查一次（可选，因为 IntersectionObserver 首次也会检查）
-            // updateVisibleListDisplay(); // IntersectionObserver 会在绑定后立即检查一次
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                // Calculate new position based on document, not viewport
+                const newLeft = e.pageX - offsetX;
+                const newTop = e.pageY - offsetY;
 
-            // 注意：如果页面动态添加了新的带有 "test" 类名的元素，
-            // 你需要获取这些新元素并对它们也调用 observer.observe(newElement)。
-            // 例如，使用 MutationObserver 监听 DOM 变化。
-        });
+                element.style.left = newLeft + 'px';
+                element.style.top = newTop + 'px';
+                drawConnections(); // Redraw lines while dragging
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    element.style.cursor = 'grab';
+                    element.style.zIndex = '';
+                    drawConnections(); // Final redraw
+                }
+            });
+        }
+
+        document.querySelectorAll('.box').forEach(makeDraggable);
+
+        // Initial draw
+        window.addEventListener('load', drawConnections);
+        // Redraw on resize (could be debounced for performance)
+        window.addEventListener('resize', drawConnections);
+        // Redraw on scroll (could be debounced for performance)
+        window.addEventListener('scroll', drawConnections, { passive: true });
+
     </script>
 
 </body>
